@@ -50,7 +50,7 @@ stages:
         runOptions: 'inline'
         inline: |
           echo "=== 1. Autenticando Docker con ACR ==="
-          docker login acrsem7g4js30142.azurecr.io -u acrsem7g4js30142 -p 
+          docker login acrsem7g4js30142.azurecr.io -u acrsem7g4js30142 -p $(ACR_PASSWORD)
 
           echo "=== 2. Limpiando contenedor QA previo si existe ==="
           if [ \((docker ps -a -q -f name=^/app-qa\)) ]; then
