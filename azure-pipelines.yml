@@ -8,7 +8,9 @@ variables:
   imageRepository: 'app-web-sem7'
 
 stages:
+# ---------------------------------------------------------
 # STAGE 1: CI (Compilación y subida a ACR)
+# ---------------------------------------------------------
 - stage: Build
   displayName: 'Stage: Compilación y Push a ACR'
   jobs:
@@ -18,26 +20,19 @@ stages:
       vmImage: 'ubuntu-latest'
     steps:
     - task: Docker@2
-      displayName: 'Construir imagen Docker'
+      displayName: 'Construir y empujar imagen a ACR'
       inputs:
-        command: 'build'
+        containerRegistry: '$(acrServiceConnection)'
         repository: '$(imageRepository)'
+        command: 'buildAndPush'
         dockerfile: '**/Dockerfile'
         tags: |
           $(Build.BuildId)
           latest
 
-    - task: Docker@2
-      displayName: 'Empujar imagen a Azure Container Registry'
-      inputs:
-        containerRegistry: '$(acrServiceConnection)'
-        repository: '$(imageRepository)'
-        command: 'push'
-        tags: |
-          $(Build.BuildId)
-          latest
-
+# ---------------------------------------------------------
 # STAGE 2: CD - Despliegue en Entorno QA (Puerto 8080)
+# ---------------------------------------------------------
 - stage: DeployQA
   displayName: 'Stage: Despliegue en QA (Staging)'
   dependsOn: Build
@@ -67,7 +62,9 @@ stages:
           echo "=== 4. Validando estado del contenedor QA ==="
           docker ps --filter "name=app-qa"
 
+# ---------------------------------------------------------
 # STAGE 3: CD - Despliegue en Entorno Producción (Puerto 80)
+# ---------------------------------------------------------
 - stage: DeployProd
   displayName: 'Stage: Despliegue en Producción'
   dependsOn: DeployQA
