@@ -49,23 +49,20 @@ stages:
         sshEndpoint: '$(sshServiceConnection)'
         runOptions: 'inline'
         inline: |
-          echo "=== 1. Autenticando Docker con ACR ==="
-          docker login acrsem7g4js30142.azurecr.io -u acrsem7g4js30142 -p $(ACR_PASSWORD)
+          echo "=== 1. Autenticación desatendida mediante Managed Identity ==="
+          az acr login --name acrsem7g4js30142
 
-          echo "=== 2. Limpiando contenedor QA previo si existe ==="
-          if [ \((docker ps -a -q -f name=^/app-qa\)) ]; then
-              docker stop app-qa
-              docker rm app-qa
-          fi
+          echo "=== 2. Limpieza de contenedor QA previo ==="
+          docker rm -f app-qa 2>/dev/null || true
 
-          echo "=== 3. Descargando imagen desde ACR ==="
+          echo "=== 3. Descarga de imagen desde ACR ==="
           docker pull acrsem7g4js30142.azurecr.io/app-web-sem7:latest
 
-          echo "=== 4. Levantando contenedor QA en puerto 8080 ==="
+          echo "=== 4. Despliegue de contenedor en ambiente QA (8080) ==="
           docker run -d --name app-qa -p 8080:80 acrsem7g4js30142.azurecr.io/app-web-sem7:latest
 
-          echo "=== 5. Estado del contenedor QA ==="
-          docker ps -f name=app-qa
+          echo "=== 5. Verificación de estado QA ==="
+          docker ps --filter "name=app-qa"
 
 # ---------------------------------------------------------
 # STAGE 3: CD - Despliegue en Entorno Producción (Puerto 80)
@@ -86,14 +83,11 @@ stages:
         sshEndpoint: '$(sshServiceConnection)'
         runOptions: 'inline'
         inline: |
-          echo "=== 1. Limpiando contenedor Producción previo si existe ==="
-          if [ \((docker ps -a -q -f name=^/app-prod\)) ]; then
-              docker stop app-prod
-              docker rm app-prod
-          fi
+          echo "=== 1. Limpieza de contenedor Producción previo ==="
+          docker rm -f app-prod 2>/dev/null || true
 
-          echo "=== 2. Levantando contenedor Producción en puerto 80 ==="
+          echo "=== 2. Despliegue de contenedor en Producción (80) ==="
           docker run -d --name app-prod -p 80:80 acrsem7g4js30142.azurecr.io/app-web-sem7:latest
 
-          echo "=== 3. Estado del contenedor Producción ==="
-          docker ps -f name=app-prod
+          echo "=== 3. Verificación de estado Producción ==="
+          docker ps --filter "name=app-prod"
