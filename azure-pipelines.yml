@@ -4,8 +4,8 @@ trigger:
 variables:
   acrServiceConnection: 'sc-acr-devops'
   sshServiceConnection: 'sc-vm-docker'
-  acrLoginServer: 'acrsem7g4js30142.azurecr.io'
-  imageRepository: 'app-web-sem7'
+  acrServer: 'acrsem7g4js30142.azurecr.io'
+  imageName: 'app-web-sem7'
 
 stages:
 # ---------------------------------------------------------
@@ -23,7 +23,7 @@ stages:
       displayName: 'Construir y empujar imagen a ACR'
       inputs:
         containerRegistry: '$(acrServiceConnection)'
-        repository: '$(imageRepository)'
+        repository: '$(imageName)'
         command: 'buildAndPush'
         dockerfile: '**/Dockerfile'
         tags: |
@@ -49,18 +49,23 @@ stages:
         sshEndpoint: '$(sshServiceConnection)'
         runOptions: 'inline'
         inline: |
-          echo "=== 1. Deteniendo contenedor QA anterior ==="
-          docker stop app-qa || true
-          docker rm app-qa || true
+          echo "=== 1. Autenticando Docker con ACR ==="
+          docker login acrsem7g4js30142.azurecr.io -u acrsem7g4js30142 -p AH2GwVTO5jmeXdQaiGhzQSWCOUDYSdwm78UvgG5wMNrnhS4Hq9pkJQQJ99CIACHrzpqEqg7NAAACAZCRt6iS
 
-          echo "=== 2. Descargando imagen desde ACR ==="
-          docker pull \((acrLoginServer)/\)(imageRepository):latest
+          echo "=== 2. Limpiando contenedor QA previo si existe ==="
+          if [ \((docker ps -a -q -f name=^/app-qa\)) ]; then
+              docker stop app-qa
+              docker rm app-qa
+          fi
 
-          echo "=== 3. Levantando contenedor QA en puerto 8080 ==="
-          docker run -d --name app-qa -p 8080:80 \((acrLoginServer)/\)(imageRepository):latest
+          echo "=== 3. Descargando imagen desde ACR ==="
+          docker pull acrsem7g4js30142.azurecr.io/app-web-sem7:latest
 
-          echo "=== 4. Validando estado del contenedor QA ==="
-          docker ps --filter "name=app-qa"
+          echo "=== 4. Levantando contenedor QA en puerto 8080 ==="
+          docker run -d --name app-qa -p 8080:80 acrsem7g4js30142.azurecr.io/app-web-sem7:latest
+
+          echo "=== 5. Estado del contenedor QA ==="
+          docker ps -f name=app-qa
 
 # ---------------------------------------------------------
 # STAGE 3: CD - Despliegue en Entorno Producción (Puerto 80)
@@ -81,12 +86,14 @@ stages:
         sshEndpoint: '$(sshServiceConnection)'
         runOptions: 'inline'
         inline: |
-          echo "=== 1. Deteniendo contenedor Producción anterior ==="
-          docker stop app-prod || true
-          docker rm app-prod || true
+          echo "=== 1. Limpiando contenedor Producción previo si existe ==="
+          if [ \((docker ps -a -q -f name=^/app-prod\)) ]; then
+              docker stop app-prod
+              docker rm app-prod
+          fi
 
           echo "=== 2. Levantando contenedor Producción en puerto 80 ==="
-          docker run -d --name app-prod -p 80:80 \((acrLoginServer)/\)(imageRepository):latest
+          docker run -d --name app-prod -p 80:80 acrsem7g4js30142.azurecr.io/app-web-sem7:latest
 
-          echo "=== 3. Validando estado del contenedor Producción ==="
-          docker ps --filter "name=app-prod"
+          echo "=== 3. Estado del contenedor Producción ==="
+          docker ps -f name=app-prod
